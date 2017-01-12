@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>PouchDB</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <!-- DOM -->
+    <div class="App">
+      <button id="add">Add</button>
+      <button id="remove">Remove</button>
+      <button id="sync">Sync</button>
+      <ul id="list"></ul>
+    </div>
+
+    <!-- Sciprts -->
+    <script src="/teams/pouchdb.js"></script>
+    <script>
+      let data = []
+
+      const DBS = {
+        Local: new PouchDB('docs'),
+        Remote: new PouchDB('http://192.168.1.112/couchdb')
+      }
+
+      const sync = DBS.Local.sync(DBS.Remote, {
+        live: true,
+        retry: true
+      }).on('change', ({ change }) => {
+        const doc = change.docs[0]
+        if (doc._deleted) {
+          data = data.filter(item => item._id != doc._id )
+        } else {
+          data = data.concat(doc)
+        }
+        render(data)
+      })
+
+      const render = data => {
+        list.innerHTML = data.map(item => `<li>${item.time}</li>`).join('')
+      }
+
+      const fetch = () => {
+        DBS.Local.allDocs({ include_docs: true })
+        .then(result => {
+          data = result.rows.map(r => r.doc)
+          render(data)
+        })
+      }
+
+      // Events
+      const addBtn = document.querySelector('#add')
+      const removeBtn = document.querySelector('#remove')
+      const list = document.querySelector('#list')
+      const syncBtn = document.querySelector('#sync')
+
+      addBtn.addEventListener('click', () => {
+        const item = { time: new Date() }
+        DBS.Local.post(item)
+      })
+
+      removeBtn.addEventListener('click', () => {
+        const item = data.pop()
+        if (! item) return
+        DBS.Local.remove(item)
+      })
+
+      syncBtn.addEventListener('click', () => fetch())
+
+    </script>
+  </body>
+</html>
+
